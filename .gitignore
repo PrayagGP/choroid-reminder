@@ -47,3 +47,4 @@ logs/
 
 ### Local/Sensitive Configuration ###
 application-local.properties
+application-test.properties
