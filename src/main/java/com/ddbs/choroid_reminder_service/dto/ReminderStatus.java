@@ -14,8 +14,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ReminderStatus {
     
-    private Long sessionId;
-    private Long userId;
+    private String sessionId;
+    private String username;
     private ReminderType reminderType;
     private boolean sent;
     private LocalDateTime sentAt;
@@ -41,10 +41,10 @@ public class ReminderStatus {
     /**
      * Create a new reminder status
      */
-    public static ReminderStatus create(Long sessionId, Long userId, ReminderType type, String email) {
+    public static ReminderStatus create(String sessionId, String username, ReminderType type, String email) {
         ReminderStatus status = new ReminderStatus();
         status.setSessionId(sessionId);
-        status.setUserId(userId);
+        status.setUsername(username);
         status.setReminderType(type);
         status.setEmailAddress(email);
         status.setSent(false);

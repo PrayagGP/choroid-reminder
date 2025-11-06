@@ -19,11 +19,8 @@ import java.util.Optional;
 /**
  * Service for communicating with Users table via API
  * 
- * NEW 3-ENDPOINT DESIGN:
- * 3. getUsersByIds() - Get user details (especially PersonalEmail) from Users table using list of UserIDs
- * 
- * PLACEHOLDER ENDPOINTS - Replace these with actual endpoints
- * TODO: Update these URLs when actual microservice endpoints are available
+ * ENDPOINT:
+ * GET /users/api/findemail/{username} - Get email address for a specific username
  */
 @Service
 @RequiredArgsConstructor
@@ -36,61 +33,84 @@ public class UserApiService {
     @Value("${api.gateway.base-url}")
     private String gatewayBaseUrl;
     
-    @Value("${api.user.get-users-by-ids}")
-    private String usersByIdsEndpoint;
+    @Value("${api.user.find-email-by-username}")
+    private String findEmailEndpoint;
     
     /**
-     * Get multiple users by their IDs from Users table
-     * Returns user details including PersonalEmail for sending notifications
+     * Get email address for a specific username
+     * Uses GET /users/api/findemail/{username}
      * 
-     * PLACEHOLDER API CALL - Replace with actual endpoint
-     * Expected response format: { "success": true, "data": [UserDto...] }
+     * Actual response format: Plain text email address (e.g., "user@example.com")
      */
-    public List<UserDto> getUsersByIds(List<Long> userIDs) {
-        if (userIDs == null || userIDs.isEmpty()) {
-            return Collections.emptyList();
+    public Optional<String> getEmailByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            log.warn("Username is null or empty");
+            return Optional.empty();
         }
         
-        log.info("Fetching {} users by IDs from Users table", userIDs.size());
+        log.info("Fetching email for username: {}", username);
         
         try {
             WebClient webClient = webClientBuilder.baseUrl(gatewayBaseUrl).build();
             
-            // Convert userIDs list to comma-separated string for query parameter
-            String userIdParams = userIDs.stream()
-                    .map(String::valueOf)
-                    .collect(java.util.stream.Collectors.joining(","));
+            String endpoint = findEmailEndpoint.replace("{username}", username);
             
-            String response = webClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path(usersByIdsEndpoint)
-                            .queryParam("userIDs", userIdParams)
-                            .build())
+            String email = webClient.get()
+                    .uri(endpoint)
                     .retrieve()
                     .bodyToMono(String.class)
                     .timeout(Duration.ofSeconds(30))
                     .block();
             
-            TypeReference<ApiResponse<List<UserDto>>> typeRef = new TypeReference<>() {};
-            ApiResponse<List<UserDto>> apiResponse = objectMapper.readValue(response, typeRef);
-            
-            if (apiResponse.getSuccess() != null && apiResponse.getSuccess()) {
-                List<UserDto> users = apiResponse.getData();
-                log.info("Successfully fetched {} users from Users table", 
-                        users != null ? users.size() : 0);
-                return users != null ? users : Collections.emptyList();
+            // Response is plain text email address
+            if (email != null && !email.trim().isEmpty() && email.contains("@")) {
+                log.info("Successfully fetched email for username {}: {}", username, email.trim());
+                return Optional.of(email.trim());
             } else {
-                log.warn("API returned unsuccessful response: {}", apiResponse.getMessage());
-                return Collections.emptyList();
+                log.warn("No valid email found for username: {} (received: {})", username, email);
+                return Optional.empty();
             }
             
         } catch (WebClientResponseException e) {
-            log.error("HTTP error fetching users by IDs - Status: {}, Body: {}", 
-                     e.getStatusCode(), e.getResponseBodyAsString());
-            return Collections.emptyList();
+            log.error("HTTP error fetching email for username {} - Status: {}, Body: {}", 
+                     username, e.getStatusCode(), e.getResponseBodyAsString());
+            return Optional.empty();
         } catch (Exception e) {
-            log.error("Error fetching users by IDs: {}", userIDs, e);
+            log.error("Error fetching email for username: {}", username, e);
+            return Optional.empty();
+        }
+    }
+    
+    /**
+     * Get user details with email for multiple usernames
+     * Fetches email for each username and builds UserDto objects
+     */
+    public List<UserDto> getUsersByUsernames(List<String> usernames) {
+        if (usernames == null || usernames.isEmpty()) {
             return Collections.emptyList();
         }
+        
+        log.info("Fetching user details for {} usernames", usernames.size());
+        
+        List<UserDto> users = new java.util.ArrayList<>();
+        
+        for (String username : usernames) {
+            Optional<String> emailOpt = getEmailByUsername(username);
+            
+            if (emailOpt.isPresent()) {
+                // Create UserDto with available information
+                UserDto user = UserDto.builder()
+                        .username(username)
+                        .personalEmail(emailOpt.get())
+                        .name(username) // Using username as display name
+                        .build();
+                users.add(user);
+            } else {
+                log.warn("Skipping username {} - no email found", username);
+            }
+        }
+        
+        log.info("Successfully created {} user objects from {} usernames", users.size(), usernames.size());
+        return users;
     }
 }

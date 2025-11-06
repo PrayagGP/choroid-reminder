@@ -1,0 +1,35 @@
+meta {
+  name: Health Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/reminders/health
+  body: none
+  auth: none
+}
+
+docs {
+  # Health Check Endpoint
+  
+  **Purpose**: Verify that the reminder service is running and operational
+  
+  **Expected Response**:
+  ```json
+  {
+    "status": "UP",
+    "service": "Choroid Reminder Service",
+    "timestamp": "2024-03-20T14:30:00",
+    "version": "1.0.0",
+    "features": {
+      "sessionReminders": "Sends reminders 30 minutes before sessions",
+      "feedbackReminders": "Sends feedback requests 30 minutes after sessions end",
+      "scheduledExecution": "Automatic execution every 5 minutes",
+      "manualTriggers": "API endpoints for manual reminder triggers"
+    }
+  }
+  ```
+  
+  **Usage**: Run this first to ensure the service is accessible before testing other endpoints.
+}

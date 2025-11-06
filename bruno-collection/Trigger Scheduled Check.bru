@@ -1,0 +1,63 @@
+meta {
+  name: Trigger Scheduled Check
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/reminders/check-now
+  body: none
+  auth: none
+}
+
+docs {
+  # Manually Trigger Scheduled Check
+  
+  **Purpose**: Manually initiate the scheduled reminder check process
+  
+  **Expected Response (200 OK)**:
+  ```json
+  {
+    "message": "Manual scheduled check triggered successfully",
+    "note": "The scheduled check process has been initiated",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Error Response (500 Internal Server Error)**:
+  ```json
+  {
+    "error": "Internal server error",
+    "message": "Error details here",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **What This Does**:
+  This endpoint triggers the same process that runs automatically every 5 minutes:
+  1. Fetches upcoming sessions (starting within 30-35 minutes)
+  2. Fetches completed sessions (ended within 30-60 minutes)
+  3. For each session:
+     - Gets registered users from RARF table
+     - Gets user details (emails) from Users table
+     - Sends appropriate reminders
+  4. Logs all activity
+  
+  **Testing Instructions**:
+  1. Ensure you have sessions in database that match timing criteria
+  2. Send request
+  3. Check service logs for processing details
+  4. Verify emails are sent
+  
+  **Use Cases**:
+  - Test scheduler logic without waiting
+  - Debug reminder processing
+  - Immediate reminder check after data changes
+  - Integration testing
+  
+  **Important Notes**:
+  - Does NOT bypass reminder timing windows
+  - Still checks if sessions are within appropriate time ranges
+  - Respects duplicate prevention logic
+  - Use "Get Statistics" after to see results
+}

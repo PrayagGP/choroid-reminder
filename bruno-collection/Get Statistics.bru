@@ -1,0 +1,38 @@
+meta {
+  name: Get Statistics
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/reminders/stats
+  body: none
+  auth: none
+}
+
+docs {
+  # Get Reminder Statistics
+  
+  **Purpose**: Retrieve statistics about reminder service operations
+  
+  **Expected Response**:
+  ```json
+  {
+    "timestamp": "2024-03-20T14:30:00",
+    "service": "Choroid Reminder Service",
+    "totalReminders": 150,
+    "remindersSentToday": 25,
+    "lastExecutionTime": "2024-03-20T14:25:00",
+    "emailsSent": 145,
+    "emailsFailed": 5
+  }
+  ```
+  
+  **Use Cases**:
+  - Monitor service performance
+  - Track reminder delivery
+  - Debug issues
+  - Generate reports
+  
+  **Note**: Statistics structure may vary based on implementation
+}

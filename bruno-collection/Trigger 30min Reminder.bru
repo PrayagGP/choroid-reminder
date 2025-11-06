@@ -1,0 +1,69 @@
+meta {
+  name: Trigger 30min Reminder
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/reminders/trigger/{{sessionId}}?reminderType=BEFORE_30_MIN
+  body: none
+  auth: none
+}
+
+docs {
+  # Trigger 30-Minute Session Reminder
+  
+  **Purpose**: Manually trigger a 30-minute session reminder for testing
+  
+  **Path Parameters**:
+  - `sessionId`: The ID of the session to send reminders for
+  
+  **Query Parameters**:
+  - `reminderType`: BEFORE_30_MIN (session starting in 30 minutes)
+  
+  **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Reminders sent successfully for session 123",
+    "sessionId": "123",
+    "reminderType": "BEFORE_30_MIN",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Error Response (400 Bad Request)** - Invalid reminder type:
+  ```json
+  {
+    "error": "Invalid reminder type",
+    "message": "Valid types: BEFORE_30_MIN, AFTER_30_MIN_FEEDBACK",
+    "provided": "INVALID_TYPE",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Error Response (500 Internal Server Error)** - Processing error:
+  ```json
+  {
+    "error": "Internal server error",
+    "message": "Session not found or API unavailable",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Testing Instructions**:
+  1. Update `sessionId` environment variable with valid session ID
+  2. Ensure session exists in database
+  3. Send request
+  4. Check logs for email sending status
+  5. Verify emails received by session creator and attendees
+  
+  **Email Recipients**:
+  - Session creator (conductor reminder)
+  - All registered attendees (participant reminder)
+  
+  **Use Cases**:
+  - Test reminder functionality
+  - Debug email templates
+  - Manual reminder sending
+  - Integration testing
+}

@@ -1,5 +1,6 @@
 package com.ddbs.choroid_reminder_service.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -11,31 +12,35 @@ import java.util.List;
 
 /**
  * DTO representing session data from Sessions table
- * Sessions(SessionID, CreatorID, Title, StartDateTime, Duration, Tags, MeetingLink, ResourcesLink)
+ * Matches actual API response structure:
+ * {id, creatorId, title, start, duration, tags[], meetingLink, resourcesLink}
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class SessionDto {
     
-    @JsonProperty("sessionID")
-    private Long sessionID;
+    @JsonProperty("id")
+    @JsonAlias("sessionID") // Accept "sessionID" as an alias
+    private String id;
     
-    @JsonProperty("creatorID")
-    private Long creatorID;
+    @JsonProperty("creatorId")
+    @JsonAlias({"creatorID", "creatorUsername"}) // Accept alternatives
+    private String creatorId; // This is the username, not a numeric ID
     
     @JsonProperty("title")
     private String title;
     
-    @JsonProperty("startDateTime")
+    @JsonProperty("start")
+    @JsonAlias("startDateTime")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime startDateTime;
+    private LocalDateTime start;
     
     @JsonProperty("duration")
     private Integer duration; // Duration in minutes
     
     @JsonProperty("tags")
-    private String tags;
+    private List<String> tags; // Array of tag strings
     
     @JsonProperty("meetingLink")
     private String meetingLink;
@@ -47,8 +52,8 @@ public class SessionDto {
      * Get calculated end time based on start time and duration
      */
     public LocalDateTime getEndDateTime() {
-        if (startDateTime != null && duration != null) {
-            return startDateTime.plusMinutes(duration);
+        if (start != null && duration != null) {
+            return start.plusMinutes(duration);
         }
         return null;
     }
@@ -57,7 +62,7 @@ public class SessionDto {
      * Check if session is upcoming (scheduled but not started)
      */
     public boolean isUpcoming() {
-        return startDateTime != null && LocalDateTime.now().isBefore(startDateTime);
+        return start != null && LocalDateTime.now().isBefore(start);
     }
     
     /**
@@ -73,8 +78,8 @@ public class SessionDto {
      */
     public long getMinutesUntilStart() {
         LocalDateTime now = LocalDateTime.now();
-        if (startDateTime != null && now.isBefore(startDateTime)) {
-            return java.time.Duration.between(now, startDateTime).toMinutes();
+        if (start != null && now.isBefore(start)) {
+            return java.time.Duration.between(now, start).toMinutes();
         }
         return 0;
     }
@@ -89,5 +94,34 @@ public class SessionDto {
             return java.time.Duration.between(endTime, now).toMinutes();
         }
         return 0;
+    }
+    
+    // Convenience methods for backward compatibility
+    public String getSessionID() {
+        return id;
+    }
+    
+    public void setSessionID(String sessionID) {
+        this.id = sessionID;
+    }
+    
+    public String getCreatorUsername() {
+        return creatorId; // creatorId is actually the username
+    }
+    
+    public void setCreatorUsername(String creatorUsername) {
+        this.creatorId = creatorUsername;
+    }
+    
+    public LocalDateTime getStartDateTime() {
+        return start;
+    }
+    
+    public void setStartDateTime(LocalDateTime startDateTime) {
+        this.start = startDateTime;
+    }
+    
+    public String getTagsAsString() {
+        return tags != null ? String.join(", ", tags) : null;
     }
 }

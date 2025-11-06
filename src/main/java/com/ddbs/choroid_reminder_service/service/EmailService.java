@@ -176,7 +176,7 @@ public class EmailService {
             session.getTitle(),
             formattedDateTime,
             session.getDuration() != null ? session.getDuration() : 60,
-            session.getTags() != null ? "<p><strong>Tags:</strong> " + session.getTags() + "</p>" : "",
+            session.getTagsAsString() != null ? "<p><strong>Tags:</strong> " + session.getTagsAsString() + "</p>" : "",
             session.getMeetingLink() != null ? "<p><strong>Meeting Link:</strong> " + session.getMeetingLink() + "</p>" : "",
             session.getResourcesLink() != null ? "<p><strong>Resources:</strong> " + session.getResourcesLink() + "</p>" : "",
             session.getMeetingLink() != null ? 
@@ -247,7 +247,7 @@ public class EmailService {
             session.getTitle(),
             formattedDateTime,
             session.getDuration() != null ? session.getDuration() : 60,
-            session.getTags() != null ? "<p><strong>Tags:</strong> " + session.getTags() + "</p>" : "",
+            session.getTagsAsString() != null ? "<p><strong>Tags:</strong> " + session.getTagsAsString() + "</p>" : "",
             session.getMeetingLink() != null ? "<p><strong>Meeting Link:</strong> " + session.getMeetingLink() + "</p>" : "",
             session.getResourcesLink() != null ? "<p><strong>Resources:</strong> " + session.getResourcesLink() + "</p>" : "",
             session.getMeetingLink() != null ? 

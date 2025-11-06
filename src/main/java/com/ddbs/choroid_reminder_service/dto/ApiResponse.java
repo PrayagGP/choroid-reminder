@@ -1,5 +1,6 @@
 package com.ddbs.choroid_reminder_service.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,6 +15,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)  // Ignore pagination and other unknown fields
 public class ApiResponse<T> {
     
     @JsonProperty("success")
@@ -25,11 +27,21 @@ public class ApiResponse<T> {
     @JsonProperty("data")
     private T data;
     
+    @JsonProperty("items")  // Support for pagination responses
+    private T items;
+    
     @JsonProperty("errors")
     private List<String> errors;
     
     @JsonProperty("timestamp")
     private String timestamp;
+    
+    /**
+     * Get the actual data, checking both 'data' and 'items' fields
+     */
+    public T getActualData() {
+        return data != null ? data : items;
+    }
     
     /**
      * Create successful response with data

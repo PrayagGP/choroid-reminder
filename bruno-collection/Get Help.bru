@@ -1,0 +1,48 @@
+meta {
+  name: Get Help
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/reminders/help
+  body: none
+  auth: none
+}
+
+docs {
+  # Get API Help Documentation
+  
+  **Purpose**: View comprehensive API documentation and usage examples
+  
+  **Expected Response**:
+  ```json
+  {
+    "service": "Choroid Reminder Service API",
+    "description": "REST API for managing and monitoring the reminder service",
+    "endpoints": {
+      "GET /api/reminders/health": "Check service health status",
+      "GET /api/reminders/stats": "Get reminder statistics",
+      "GET /api/reminders/config": "Get service configuration",
+      "GET /api/reminders/help": "This help documentation",
+      "POST /api/reminders/trigger/{sessionId}": "Manually trigger reminder for session",
+      "POST /api/reminders/test-email": "Send test email to verify configuration",
+      "POST /api/reminders/check-now": "Manually trigger scheduled check process"
+    },
+    "parameters": {
+      "reminderType": "BEFORE_30_MIN | AFTER_30_MIN_FEEDBACK",
+      "email": "Valid email address for test emails"
+    },
+    "examples": {
+      "triggerReminder": "POST /api/reminders/trigger/123?reminderType=BEFORE_30_MIN",
+      "testEmail": "POST /api/reminders/test-email?email=test@example.com"
+    },
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Use Cases**:
+  - Quick API reference
+  - Integration guide
+  - Example usage patterns
+}

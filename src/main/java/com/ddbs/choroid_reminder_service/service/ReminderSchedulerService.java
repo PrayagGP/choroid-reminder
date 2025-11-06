@@ -82,10 +82,15 @@ public class ReminderSchedulerService {
         for (SessionDto session : upcomingSessions) {
             try {
                 long minutesUntilStart = session.getMinutesUntilStart();
+                log.info("Session '{}' (ID: {}) starts in {} minutes", session.getTitle(), session.getSessionID(), minutesUntilStart);
                 
                 // Check if we need to send reminder (30 minutes)
                 if (shouldSendReminder(minutesUntilStart, reminderMinutes)) {
+                    log.info("✓ Timing criteria met - sending reminders for session {}", session.getSessionID());
                     sendSessionReminders(session, reminderMinutes, ReminderStatus.ReminderType.BEFORE_30_MIN);
+                } else {
+                    log.info("✗ Timing criteria NOT met (need 10-30 mins, got {} mins) - skipping session {}", 
+                            minutesUntilStart, session.getSessionID());
                 }
                 
             } catch (Exception e) {
@@ -123,34 +128,34 @@ public class ReminderSchedulerService {
     
     /**
      * Send session reminders: conductor reminder to creator, attendee reminders to registered users
-     * NEW LOGIC: Get registered users from RARF table, send different reminders to creator vs attendees
+     * UPDATED LOGIC: Works with usernames from RARF table, fetches emails individually
      */
     private void sendSessionReminders(SessionDto session, int minutesBefore, ReminderStatus.ReminderType reminderType) {
         log.info("Sending {} reminders for session {}: {}", reminderType, session.getSessionID(), session.getTitle());
         
-        // Step 1: Get registered user IDs from RARF table
-        List<Long> registeredUserIDs = sessionApiService.getRegisteredUsersBySession(session.getSessionID());
+        // Step 1: Get registered usernames from RARF table
+        List<String> registeredUsernames = sessionApiService.getRegisteredUsernamesBySession(session.getSessionID());
         
-        // Step 2: Add the session creator to the list (they should also get a reminder)
-        List<Long> allUserIDs = new ArrayList<>(registeredUserIDs);
-        if (!allUserIDs.contains(session.getCreatorID())) {
-            allUserIDs.add(session.getCreatorID());
+        // Step 2: Add the session creator username to the list (they should also get a reminder)
+        List<String> allUsernames = new ArrayList<>(registeredUsernames);
+        if (session.getCreatorUsername() != null && !allUsernames.contains(session.getCreatorUsername())) {
+            allUsernames.add(session.getCreatorUsername());
         }
         
-        if (allUserIDs.isEmpty()) {
-            log.warn("No users found for session {}, skipping reminders", session.getSessionID());
+        if (allUsernames.isEmpty()) {
+            log.warn("No usernames found for session {}, skipping reminders", session.getSessionID());
             return;
         }
         
-        // Step 3: Get user details for all users
-        List<UserDto> allUsers = userApiService.getUsersByIds(allUserIDs);
+        // Step 3: Get user details (with emails) for all usernames
+        List<UserDto> allUsers = userApiService.getUsersByUsernames(allUsernames);
         
         int successCount = 0;
         int failureCount = 0;
         
         for (UserDto user : allUsers) {
             try {
-                String reminderKey = generateReminderKey(session.getSessionID(), user.getUserID(), reminderType);
+                String reminderKey = generateReminderKey(session.getSessionID(), user.getUsername(), reminderType);
                 
                 // Check if reminder already sent
                 if (sentReminders.containsKey(reminderKey)) {
@@ -160,21 +165,21 @@ public class ReminderSchedulerService {
                 
                 // Validate user has email
                 if (!user.hasValidEmail()) {
-                    log.warn("User {} has invalid email, skipping reminder", user.getUserID());
+                    log.warn("User {} has invalid email, skipping reminder", user.getUsername());
                     continue;
                 }
                 
                 // Create reminder status
                 ReminderStatus reminderStatus = ReminderStatus.create(
                     session.getSessionID(), 
-                    user.getUserID(), 
+                    user.getUsername(), 
                     reminderType, 
                     user.getPrimaryEmail()
                 );
                 
                 // Send appropriate email based on role (conductor vs attendee)
                 boolean emailSent;
-                if (user.getUserID().equals(session.getCreatorID())) {
+                if (user.getUsername().equals(session.getCreatorUsername())) {
                     // This is the session creator - send conductor reminder
                     emailSent = emailService.sendConductorReminder(user, session, minutesBefore);
                     log.info("Conductor reminder sent to {} for session {}", user.getPrimaryEmail(), session.getSessionID());
@@ -198,7 +203,7 @@ public class ReminderSchedulerService {
                 
             } catch (Exception e) {
                 failureCount++;
-                log.error("Error sending reminder to user {} for session {}", user.getUserID(), session.getSessionID(), e);
+                log.error("Error sending reminder to user {} for session {}", user.getUsername(), session.getSessionID(), e);
             }
         }
         
@@ -208,32 +213,34 @@ public class ReminderSchedulerService {
     
     /**
      * Send feedback reminders only to attendees (registered users, excluding the conductor)
-     * FIXED LOGIC: Only send feedback to participants, not the session creator/conductor
+     * UPDATED LOGIC: Works with usernames, excludes conductor from feedback
      */
     private void sendFeedbackReminders(SessionDto session) {
         log.info("Sending feedback reminders for session {}: {}", session.getSessionID(), session.getTitle());
         
-        // Step 1: Get registered user IDs from RARF table
-        List<Long> registeredUserIDs = sessionApiService.getRegisteredUsersBySession(session.getSessionID());
+        // Step 1: Get registered usernames from RARF table
+        List<String> registeredUsernames = sessionApiService.getRegisteredUsernamesBySession(session.getSessionID());
         
-        // Step 2: Remove the session creator/conductor from feedback recipients (conductors shouldn't get feedback mail)
-        List<Long> feedbackUserIDs = new ArrayList<>(registeredUserIDs);
-        feedbackUserIDs.removeIf(userId -> userId.equals(session.getCreatorID()));
+        // Step 2: Remove the session creator/conductor from feedback recipients
+        List<String> feedbackUsernames = new ArrayList<>(registeredUsernames);
+        if (session.getCreatorUsername() != null) {
+            feedbackUsernames.removeIf(username -> username.equals(session.getCreatorUsername()));
+        }
         
-        if (feedbackUserIDs.isEmpty()) {
+        if (feedbackUsernames.isEmpty()) {
             log.info("No attendees found for session {} (excluding conductor), skipping feedback reminders", session.getSessionID());
             return;
         }
         
-        // Step 3: Get user details for attendees only
-        List<UserDto> attendeeUsers = userApiService.getUsersByIds(feedbackUserIDs);
+        // Step 3: Get user details (with emails) for attendees only
+        List<UserDto> attendeeUsers = userApiService.getUsersByUsernames(feedbackUsernames);
         
         int successCount = 0;
         int failureCount = 0;
         
         for (UserDto user : attendeeUsers) {
             try {
-                String reminderKey = generateReminderKey(session.getSessionID(), user.getUserID(), ReminderStatus.ReminderType.AFTER_30_MIN_FEEDBACK);
+                String reminderKey = generateReminderKey(session.getSessionID(), user.getUsername(), ReminderStatus.ReminderType.AFTER_30_MIN_FEEDBACK);
                 
                 // Check if reminder already sent
                 if (sentReminders.containsKey(reminderKey)) {
@@ -243,19 +250,19 @@ public class ReminderSchedulerService {
                 
                 // Validate user has email
                 if (!user.hasValidEmail()) {
-                    log.warn("User {} has invalid email, skipping feedback reminder", user.getUserID());
+                    log.warn("User {} has invalid email, skipping feedback reminder", user.getUsername());
                     continue;
                 }
                 
                 // Create reminder status
                 ReminderStatus reminderStatus = ReminderStatus.create(
                     session.getSessionID(), 
-                    user.getUserID(), 
+                    user.getUsername(), 
                     ReminderStatus.ReminderType.AFTER_30_MIN_FEEDBACK, 
                     user.getPrimaryEmail()
                 );
                 
-                // Send feedback reminder (same for both creator and attendees)
+                // Send feedback reminder
                 boolean emailSent = emailService.sendFeedbackReminder(user, session);
                 
                 if (emailSent) {
@@ -273,7 +280,7 @@ public class ReminderSchedulerService {
                 
             } catch (Exception e) {
                 failureCount++;
-                log.error("Error sending feedback reminder to user {} for session {}", user.getUserID(), session.getSessionID(), e);
+                log.error("Error sending feedback reminder to user {} for session {}", user.getUsername(), session.getSessionID(), e);
             }
         }
         
@@ -285,8 +292,8 @@ public class ReminderSchedulerService {
      * Check if we should send a reminder based on timing
      */
     private boolean shouldSendReminder(long minutesUntilStart, int targetMinutes) {
-        // Send reminder if we're within 2 minutes of target time (to account for scheduler intervals)
-        return minutesUntilStart <= targetMinutes && minutesUntilStart >= (targetMinutes - 2);
+        // Send reminder if session is 10-30 minutes away (relaxed timing criteria)
+        return minutesUntilStart <= 30 && minutesUntilStart >= 10;
     }
     
     /**
@@ -299,9 +306,10 @@ public class ReminderSchedulerService {
     
     /**
      * Generate unique key for reminder tracking
+     * Uses username instead of user ID
      */
-    private String generateReminderKey(Long sessionId, Long userId, ReminderStatus.ReminderType reminderType) {
-        return String.format("%d_%d_%s", sessionId, userId, reminderType.name());
+    private String generateReminderKey(String sessionId, String username, ReminderStatus.ReminderType reminderType) {
+        return String.format("%s_%s_%s", sessionId, username, reminderType.name());
     }
     
     /**
@@ -324,7 +332,7 @@ public class ReminderSchedulerService {
     /**
      * Manual trigger for testing - send reminders for a specific session
      */
-    public String triggerManualReminder(Long sessionId, ReminderStatus.ReminderType reminderType) {
+    public String triggerManualReminder(String sessionId, ReminderStatus.ReminderType reminderType) {
         log.info("Manual trigger requested for session {} with reminder type {}", sessionId, reminderType);
         
         try {

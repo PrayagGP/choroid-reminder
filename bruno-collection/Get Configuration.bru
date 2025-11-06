@@ -1,0 +1,49 @@
+meta {
+  name: Get Configuration
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/reminders/config
+  body: none
+  auth: none
+}
+
+docs {
+  # Get Service Configuration
+  
+  **Purpose**: View non-sensitive service configuration details
+  
+  **Expected Response**:
+  ```json
+  {
+    "service": "Choroid Reminder Service",
+    "description": "Automated reminder system for session notifications",
+    "features": {
+      "sessionReminders": "30 minutes before session start",
+      "feedbackReminders": "30 minutes after session end",
+      "emailSupport": "HTML emails via SMTP",
+      "scheduling": "Automatic execution every 5 minutes"
+    },
+    "endpoints": {
+      "health": "GET /api/reminders/health",
+      "stats": "GET /api/reminders/stats",
+      "manualTrigger": "POST /api/reminders/trigger/{sessionId}?reminderType={type}",
+      "testEmail": "POST /api/reminders/test-email?email={email}",
+      "config": "GET /api/reminders/config"
+    },
+    "reminderTypes": {
+      "BEFORE_30_MIN": "Session starting in 30 minutes",
+      "AFTER_30_MIN_FEEDBACK": "Please provide session feedback"
+    },
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Use Cases**:
+  - Understand service capabilities
+  - Discover available endpoints
+  - View reminder types
+  - Integration documentation
+}

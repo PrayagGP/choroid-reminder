@@ -1,6 +1,7 @@
 package com.ddbs.choroid_reminder_service.service;
 
 import com.ddbs.choroid_reminder_service.dto.ApiResponse;
+import com.ddbs.choroid_reminder_service.dto.RarfDto;
 import com.ddbs.choroid_reminder_service.dto.SessionDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +19,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Service for communicating with Session and RARF tables via API
@@ -40,30 +42,38 @@ public class SessionApiService {
     @Value("${api.gateway.base-url}")
     private String gatewayBaseUrl;
     
-    @Value("${api.session.get-upcoming-sessions}")
-    private String upcomingSessionsEndpoint;
+    @Value("${api.session.search}")
+    private String sessionSearchEndpoint;
     
-    @Value("${api.session.get-completed-sessions}")
-    private String completedSessionsEndpoint;
-    
-    @Value("${api.rarf.get-registered-users}")
-    private String registeredUsersEndpoint;
+    @Value("${api.rarf.get-session-records}")
+    private String rarfSessionRecordsEndpoint;
     
     /**
      * Get upcoming sessions (starting within the next ~30-35 minutes)
-     * This endpoint should return sessions filtered by the backend to only include those starting soon
+     * Uses POST /choroid/sessions/search with search criteria
      * 
-     * PLACEHOLDER API CALL - Replace with actual endpoint
      * Expected response format: { "success": true, "data": [SessionDto...] }
      */
     public List<SessionDto> getUpcomingSessions() {
-        log.info("Fetching upcoming sessions from: {}{}", gatewayBaseUrl, upcomingSessionsEndpoint);
+        log.info("Searching for upcoming sessions using: {}{}", gatewayBaseUrl, sessionSearchEndpoint);
         
         try {
             WebClient webClient = webClientBuilder.baseUrl(gatewayBaseUrl).build();
             
-            String response = webClient.get()
-                    .uri(upcomingSessionsEndpoint)
+            // Calculate time range for upcoming sessions (now to now + 35 minutes)
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime futureTime = now.plusMinutes(35);
+            
+            // Build search criteria for upcoming sessions
+            var searchCriteria = java.util.Map.of(
+                "startAfter", now.toString(),
+                "startBefore", futureTime.toString()
+            );
+            
+            String response = webClient.post()
+                    .uri(sessionSearchEndpoint)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(searchCriteria)
                     .retrieve()
                     .bodyToMono(String.class)
                     .timeout(Duration.ofSeconds(30))
@@ -73,40 +83,50 @@ public class SessionApiService {
             TypeReference<ApiResponse<List<SessionDto>>> typeRef = new TypeReference<>() {};
             ApiResponse<List<SessionDto>> apiResponse = objectMapper.readValue(response, typeRef);
             
-            if (apiResponse.getSuccess() != null && apiResponse.getSuccess()) {
-                List<SessionDto> sessions = apiResponse.getData();
-                log.info("Successfully fetched {} upcoming sessions", sessions != null ? sessions.size() : 0);
-                return sessions != null ? sessions : Collections.emptyList();
-            } else {
-                log.warn("API returned unsuccessful response: {}", apiResponse.getMessage());
-                return Collections.emptyList();
-            }
+            // Get data from either 'data' or 'items' field (API may not have 'success' field)
+            List<SessionDto> sessions = apiResponse.getActualData();
+            log.info("Successfully fetched {} upcoming sessions", sessions != null ? sessions.size() : 0);
+            return sessions != null ? sessions : Collections.emptyList();
             
         } catch (WebClientResponseException e) {
-            log.error("HTTP error fetching upcoming sessions - Status: {}, Body: {}", 
+            log.error("HTTP error searching upcoming sessions - Status: {}, Body: {}", 
                      e.getStatusCode(), e.getResponseBodyAsString());
             return Collections.emptyList();
         } catch (Exception e) {
-            log.error("Error fetching upcoming sessions", e);
+            log.error("Error searching upcoming sessions", e);
             return Collections.emptyList();
         }
     }
     
     /**
      * Get recently completed sessions (ended within the last ~30-60 minutes)
-     * This endpoint should return sessions filtered by the backend to only include recently ended sessions
+     * Uses POST /choroid/sessions/search with search criteria for completed sessions
      * 
-     * PLACEHOLDER API CALL - Replace with actual endpoint
      * Expected response format: { "success": true, "data": [SessionDto...] }
      */
     public List<SessionDto> getRecentlyCompletedSessions() {
-        log.info("Fetching recently completed sessions from: {}{}", gatewayBaseUrl, completedSessionsEndpoint);
+        log.info("Searching for recently completed sessions using: {}{}", gatewayBaseUrl, sessionSearchEndpoint);
         
         try {
             WebClient webClient = webClientBuilder.baseUrl(gatewayBaseUrl).build();
             
-            String response = webClient.get()
-                    .uri(completedSessionsEndpoint)
+            // Calculate time range for completed sessions
+            // We want sessions that started 60-120 minutes ago (assuming typical 60-min duration)
+            // This catches sessions that would have ended 30 minutes ago (for 30-min feedback reminder)
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime from = now.minusMinutes(120);  // Started 2 hours ago
+            LocalDateTime to = now.minusMinutes(30);     // Started 30 minutes ago
+            
+            // Build search criteria for completed sessions (sessions that started and should have ended)
+            var searchCriteria = java.util.Map.of(
+                "startAfter", from.toString(),
+                "startBefore", to.toString()
+            );
+            
+            String response = webClient.post()
+                    .uri(sessionSearchEndpoint)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(searchCriteria)
                     .retrieve()
                     .bodyToMono(String.class)
                     .timeout(Duration.ofSeconds(30))
@@ -116,38 +136,36 @@ public class SessionApiService {
             TypeReference<ApiResponse<List<SessionDto>>> typeRef = new TypeReference<>() {};
             ApiResponse<List<SessionDto>> apiResponse = objectMapper.readValue(response, typeRef);
             
-            if (apiResponse.getSuccess() != null && apiResponse.getSuccess()) {
-                List<SessionDto> sessions = apiResponse.getData();
-                log.info("Successfully fetched {} recently completed sessions", sessions != null ? sessions.size() : 0);
-                return sessions != null ? sessions : Collections.emptyList();
-            } else {
-                log.warn("API returned unsuccessful response: {}", apiResponse.getMessage());
-                return Collections.emptyList();
-            }
+            // Get data from either 'data' or 'items' field (API may not have 'success' field)
+            List<SessionDto> sessions = apiResponse.getActualData();
+            log.info("Successfully fetched {} recently completed sessions", sessions != null ? sessions.size() : 0);
+            return sessions != null ? sessions : Collections.emptyList();
             
         } catch (WebClientResponseException e) {
-            log.error("HTTP error fetching completed sessions - Status: {}, Body: {}", 
+            log.error("HTTP error searching completed sessions - Status: {}, Body: {}", 
                      e.getStatusCode(), e.getResponseBodyAsString());
             return Collections.emptyList();
         } catch (Exception e) {
-            log.error("Error fetching completed sessions", e);
+            log.error("Error searching completed sessions", e);
             return Collections.emptyList();
         }
     }
     
     /**
-     * Get registered user IDs for a specific session from RARF table
+     * Get all RARF records for a specific session
+     * Returns usernames of attendees who registered for the session
+     * Uses GET /choroid/rarf/session/{sessionId}/all
      * 
-     * PLACEHOLDER API CALL - Replace with actual endpoint
-     * Expected response format: { "success": true, "data": [123, 456, 789] }
+     * Actual response format: [{"sessionId": "...", "userId": "username", ...}, ...]
+     * Returns array of RARF objects directly (not wrapped in ApiResponse)
      */
-    public List<Long> getRegisteredUsersBySession(Long sessionID) {
-        log.info("Fetching registered users for session {} from RARF table", sessionID);
+    public List<String> getRegisteredUsernamesBySession(String sessionID) {
+        log.info("Fetching RARF usernames for session {} from: {}{}", sessionID, gatewayBaseUrl, rarfSessionRecordsEndpoint);
         
         try {
             WebClient webClient = webClientBuilder.baseUrl(gatewayBaseUrl).build();
             
-            String endpoint = registeredUsersEndpoint.replace("{sessionID}", sessionID.toString());
+            String endpoint = rarfSessionRecordsEndpoint.replace("{sessionId}", sessionID);
             
             String response = webClient.get()
                     .uri(endpoint)
@@ -156,25 +174,25 @@ public class SessionApiService {
                     .timeout(Duration.ofSeconds(30))
                     .block();
             
-            TypeReference<ApiResponse<List<Long>>> typeRef = new TypeReference<>() {};
-            ApiResponse<List<Long>> apiResponse = objectMapper.readValue(response, typeRef);
+            // Parse response - expecting direct array of RARF objects
+            TypeReference<List<RarfDto>> typeRef = new TypeReference<>() {};
+            List<RarfDto> rarfRecords = objectMapper.readValue(response, typeRef);
             
-            if (apiResponse.getSuccess() != null && apiResponse.getSuccess()) {
-                List<Long> userIDs = apiResponse.getData();
-                log.info("Successfully fetched {} registered users for session {}", 
-                        userIDs != null ? userIDs.size() : 0, sessionID);
-                return userIDs != null ? userIDs : Collections.emptyList();
-            } else {
-                log.warn("API returned unsuccessful response: {}", apiResponse.getMessage());
-                return Collections.emptyList();
-            }
+            // Extract usernames (userId field) from RARF records
+            List<String> usernames = rarfRecords.stream()
+                    .map(RarfDto::getUserId)
+                    .filter(userId -> userId != null && !userId.isEmpty())
+                    .collect(Collectors.toList());
+            
+            log.info("Successfully fetched {} usernames (RARF records) for session {}", usernames.size(), sessionID);
+            return usernames;
             
         } catch (WebClientResponseException e) {
-            log.error("HTTP error fetching registered users for session {} - Status: {}, Body: {}", 
+            log.error("HTTP error fetching RARF usernames for session {} - Status: {}, Body: {}", 
                      sessionID, e.getStatusCode(), e.getResponseBodyAsString());
             return Collections.emptyList();
         } catch (Exception e) {
-            log.error("Error fetching registered users for session {}", sessionID, e);
+            log.error("Error fetching RARF usernames for session {}", sessionID, e);
             return Collections.emptyList();
         }
     }

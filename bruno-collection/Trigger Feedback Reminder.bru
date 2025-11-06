@@ -1,0 +1,75 @@
+meta {
+  name: Trigger Feedback Reminder
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/reminders/trigger/{{sessionId}}?reminderType=AFTER_30_MIN_FEEDBACK
+  body: none
+  auth: none
+}
+
+docs {
+  # Trigger Feedback Reminder
+  
+  **Purpose**: Manually trigger a feedback reminder after session completion
+  
+  **Path Parameters**:
+  - `sessionId`: The ID of the completed session
+  
+  **Query Parameters**:
+  - `reminderType`: AFTER_30_MIN_FEEDBACK (request feedback 30 mins after session)
+  
+  **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Feedback reminders sent successfully for session 123",
+    "sessionId": "123",
+    "reminderType": "AFTER_30_MIN_FEEDBACK",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Error Response (400 Bad Request)** - Invalid reminder type:
+  ```json
+  {
+    "error": "Invalid reminder type",
+    "message": "Valid types: BEFORE_30_MIN, AFTER_30_MIN_FEEDBACK",
+    "provided": "INVALID_TYPE",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Error Response (500 Internal Server Error)**:
+  ```json
+  {
+    "error": "Internal server error",
+    "message": "Session not found or API unavailable",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Testing Instructions**:
+  1. Set `sessionId` to a completed session ID
+  2. Send request
+  3. Check that feedback emails are sent to:
+     - Session creator
+     - All registered attendees
+  4. Verify email content includes feedback link
+  
+  **Email Recipients**:
+  - Session creator
+  - All registered attendees (from RARF table)
+  
+  **Use Cases**:
+  - Test feedback reminder emails
+  - Debug feedback request functionality
+  - Manual feedback reminder trigger
+  - Post-session testing
+  
+  **Important Notes**:
+  - Typically triggered automatically 30 minutes after session ends
+  - This endpoint allows manual triggering for testing
+  - Feedback link in email should point to your feedback form
+}

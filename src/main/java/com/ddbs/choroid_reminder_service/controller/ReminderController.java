@@ -70,7 +70,7 @@ public class ReminderController {
      */
     @PostMapping("/trigger/{sessionId}")
     public ResponseEntity<Map<String, String>> triggerManualReminder(
-            @PathVariable Long sessionId,
+            @PathVariable String sessionId,
             @RequestParam String reminderType) {
         
         log.info("Manual reminder trigger requested for session {} with type {}", sessionId, reminderType);
@@ -94,7 +94,7 @@ public class ReminderController {
             String result = reminderSchedulerService.triggerManualReminder(sessionId, type);
             
             response.put("message", result);
-            response.put("sessionId", sessionId.toString());
+            response.put("sessionId", sessionId);
             response.put("reminderType", type.name());
             response.put("timestamp", LocalDateTime.now().toString());
             

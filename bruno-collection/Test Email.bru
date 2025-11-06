@@ -1,0 +1,61 @@
+meta {
+  name: Test Email
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/reminders/test-email?email={{testEmail}}
+  body: none
+  auth: none
+}
+
+docs {
+  # Test Email Configuration
+  
+  **Purpose**: Verify email configuration by sending a test email
+  
+  **Query Parameters**:
+  - `email`: Email address to send test email to
+  
+  **Success Response (200 OK)**:
+  ```json
+  {
+    "message": "Test email sent successfully",
+    "status": "success",
+    "email": "test@example.com",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Error Response (400 Bad Request)** - Invalid email:
+  ```json
+  {
+    "error": "Invalid email format",
+    "message": "Please provide a valid email address",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Error Response (500 Internal Server Error)** - Email config issue:
+  ```json
+  {
+    "message": "Failed to send test email - check email configuration",
+    "status": "failed",
+    "email": "test@example.com",
+    "timestamp": "2024-03-20T14:30:00"
+  }
+  ```
+  
+  **Testing Instructions**:
+  1. Update `testEmail` environment variable with your email
+  2. Send request
+  3. Check your inbox for test email
+  4. If failed, verify SMTP configuration in application.properties
+  
+  **Common Issues**:
+  - Gmail App Password not set correctly
+  - SMTP server unreachable
+  - Invalid email format
+  - Firewall blocking SMTP port
+}
