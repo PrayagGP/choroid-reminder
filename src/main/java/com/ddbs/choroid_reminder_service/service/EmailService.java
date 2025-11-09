@@ -29,6 +29,9 @@ public class EmailService {
     @Value("${reminder.from-name}")
     private String fromName;
     
+    @Value("${api.gateway.base-url}")
+    private String gatewayBaseUrl;
+    
     /**
      * Send conductor reminder email (for session creator)
      */
@@ -311,9 +314,7 @@ public class EmailService {
                         </div>
                         
                         <div style="text-align: center;">
-                            <p><em>Please click the button below to provide your feedback:</em></p>
-                            <a href="#" class="cta-button">Give Feedback</a>
-                            <p><small>Note: Replace this placeholder link with your actual feedback form URL</small></p>
+                            <a href="%s/feedback/%s/fill" class="cta-button">Submit Your Feedback</a>
                         </div>
                         
                         <p>Thank you for taking the time to help us improve. Your input makes a real difference!</p>
@@ -330,7 +331,9 @@ public class EmailService {
             user.getDisplayName(),
             session.getTitle(),
             "Session Conductor", // No instructor field in new schema
-            formattedDate
+            formattedDate,
+            gatewayBaseUrl,
+            session.getSessionID()
         );
     }
     

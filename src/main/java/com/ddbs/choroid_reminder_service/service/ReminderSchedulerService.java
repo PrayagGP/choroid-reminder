@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * This service:
  * - Checks for upcoming sessions every 5 minutes
  * - Sends 30-minute reminders before sessions start
- * - Sends feedback reminders 30 minutes after sessions end
+ * - Sends feedback reminders for sessions completed within past 10 minutes
  * - Prevents duplicate reminder sending
  */
 @Service
@@ -101,7 +101,7 @@ public class ReminderSchedulerService {
     
     /**
      * Process completed sessions and send feedback reminders
-     * UPDATED LOGIC: Use filtered endpoint to get only sessions that ended within ~30-60 minutes
+     * UPDATED LOGIC: Use filtered endpoint to get sessions completed within past 10 minutes
      */
     private void processCompletedSessions() {
         log.info("Processing completed sessions for feedback reminders");
@@ -298,10 +298,11 @@ public class ReminderSchedulerService {
     
     /**
      * Check if we should send feedback reminder
+     * Send for any session that completed within the past 10 minutes
      */
     private boolean shouldSendFeedbackReminder(long minutesSinceEnd, int targetMinutes) {
-        // Send reminder if we're within 5 minutes of target time
-        return minutesSinceEnd >= targetMinutes && minutesSinceEnd <= (targetMinutes + 5);
+        // Send reminder if session ended within the past 10 minutes
+        return minutesSinceEnd >= 0 && minutesSinceEnd <= 10;
     }
     
     /**
