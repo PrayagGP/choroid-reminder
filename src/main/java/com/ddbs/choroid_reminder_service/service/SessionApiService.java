@@ -99,7 +99,7 @@ public class SessionApiService {
     }
     
     /**
-     * Get recently completed sessions (ended within the last 10 minutes)
+     * Get recently completed sessions (ended within the last 30 minutes)
      * Uses POST /choroid/sessions/search with search criteria for completed sessions
      * 
      * Expected response format: { "success": true, "data": [SessionDto...] }
@@ -111,11 +111,11 @@ public class SessionApiService {
             WebClient webClient = webClientBuilder.baseUrl(gatewayBaseUrl).build();
             
             // Calculate time range for completed sessions
-            // We want sessions that ended within the past 10 minutes
-            // Look for sessions that started up to 70 minutes ago (covers 60-min sessions that ended 10 min ago)
+            // We want sessions that ended within the past 30 minutes
+            // Look for sessions that started up to 90 minutes ago (covers 60-min sessions that ended 30 min ago)
             // and as recently as now (covers short sessions that just ended)
             LocalDateTime now = LocalDateTime.now();
-            LocalDateTime from = now.minusMinutes(70);   // Started up to 70 minutes ago
+            LocalDateTime from = now.minusMinutes(90);   // Started up to 90 minutes ago
             LocalDateTime to = now;                       // Up to right now
             
             // Build search criteria for completed sessions (sessions that started and should have ended)
